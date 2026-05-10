@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                             http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+
+    <display-name>Data Access Log Analyzer</display-name>
+    <description>CyberGuard - Professional Cybersecurity Monitoring Dashboard</description>
+
+    <!-- Welcome File -->
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+    </welcome-file-list>
+
+    <!-- DataAccess Servlet -->
+    <servlet>
+        <servlet-name>DataAccessServlet</servlet-name>
+        <servlet-class>com.cyberguard.servlet.DataAccessServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>DataAccessServlet</servlet-name>
+        <url-pattern>/DataAccessServlet</url-pattern>
+    </servlet-mapping>
+
+</web-app>
