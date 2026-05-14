@@ -1,146 +1,327 @@
-// ===== Data Access Log Analyzer - Simplified Script =====
+/* ============================================================
+   CyberGuard – Data Access Log Analyzer | script.js
+   ============================================================ */
 
+'use strict';
+
+// ── State ───────────────────────────────────────────────────
+const state = { total: 0, suspicious: 0, safe: 0, logs: [] };
+
+// ── Init ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initParticles();
   setDefaultTimestamp();
+  startClock();
   initForm();
+  initThreatPreview();
+  refreshDashboard();
+  setInterval(refreshDashboard, 6000);
 });
 
-// ===== Background Particles =====
+// ── Clock ────────────────────────────────────────────────────
+function startClock() {
+  const el = document.getElementById('headerTime');
+  function tick() {
+    el.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ── Particles ────────────────────────────────────────────────
 function initParticles() {
   const container = document.getElementById('bgParticles');
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < 40; i++) {
     const p = document.createElement('div');
     p.className = 'particle';
-    p.style.left = Math.random() * 100 + '%';
-    p.style.top = Math.random() * 100 + '%';
-    p.style.animationDuration = (8 + Math.random() * 10) + 's';
-    p.style.animationDelay = (Math.random() * 5) + 's';
+    p.style.cssText = `
+      left:${Math.random()*100}%;
+      top:${Math.random()*100}%;
+      animation-duration:${9 + Math.random()*10}s;
+      animation-delay:${Math.random()*6}s;
+      width:${Math.random() > 0.7 ? 3 : 2}px;
+      height:${Math.random() > 0.7 ? 3 : 2}px;
+    `;
     container.appendChild(p);
   }
 }
 
-// ===== Set Default Timestamp to Now =====
+// ── Default Timestamp ────────────────────────────────────────
 function setDefaultTimestamp() {
-  const ts = document.getElementById('timestamp');
+  const el = document.getElementById('timestamp');
+  if (!el) return;
   const now = new Date();
   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  ts.value = now.toISOString().slice(0, 16);
+  el.value = now.toISOString().slice(0, 16);
 }
 
-// ===== Form Handling =====
+// ── Threat Preview Banner ────────────────────────────────────
+function initThreatPreview() {
+  const accessType = document.getElementById('accessType');
+  const resource   = document.getElementById('resource');
+  const preview    = document.getElementById('threatPreview');
+  const msg        = document.getElementById('threatMsg');
+
+  function check() {
+    const at  = accessType.value;
+    const res = resource.value.trim().toLowerCase();
+    const isDelete = at === 'DELETE';
+    const isAdmin  = res === 'admin';
+
+    if (isDelete || isAdmin) {
+      let reasons = [];
+      if (isDelete) reasons.push('<strong>DELETE</strong> operation');
+      if (isAdmin)  reasons.push('<strong>admin</strong> resource');
+      msg.innerHTML = `⚠ This event will be flagged as <strong>SUSPICIOUS</strong> — ${reasons.join(' + ')} detected`;
+      preview.classList.add('show');
+    } else {
+      preview.classList.remove('show');
+    }
+  }
+
+  accessType.addEventListener('change', check);
+  resource.addEventListener('input', check);
+}
+
+// ── Form Handling ────────────────────────────────────────────
 function initForm() {
-  document.getElementById('logForm').addEventListener('submit', function(e) {
+  const form      = document.getElementById('logForm');
+  const submitBtn = document.getElementById('submitBtn');
+  const btnText   = document.getElementById('btnText');
+  const btnLoader = document.getElementById('btnLoader');
+
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
     const data = {
-      userId: document.getElementById('userId').value.trim(),
-      resource: document.getElementById('resource').value.trim(),
+      userId:     document.getElementById('userId').value.trim(),
+      resource:   document.getElementById('resource').value.trim(),
       accessType: document.getElementById('accessType').value,
-      timestamp: document.getElementById('timestamp').value
+      timestamp:  document.getElementById('timestamp').value
     };
 
-    const isSuspicious = data.accessType === 'DELETE' || data.resource.toLowerCase() === 'admin';
+    const isSuspicious =
+      data.accessType === 'DELETE' ||
+      data.resource.toLowerCase() === 'admin';
 
-    // Show loading
-    document.getElementById('btnText').style.display = 'none';
-    document.getElementById('btnLoader').style.display = 'inline';
-    document.getElementById('submitBtn').disabled = true;
+    // Show loader
+    btnText.style.display   = 'none';
+    btnLoader.style.display = 'flex';
+    submitBtn.disabled      = true;
 
-    // Send to servlet
-    fetch('DataAccessServlet', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(data).toString()
-    })
-    .then(() => showResult(data, isSuspicious))
-    .catch(() => showResult(data, isSuspicious))  // Demo mode fallback
-    .finally(() => {
-      document.getElementById('btnText').style.display = 'inline';
-      document.getElementById('btnLoader').style.display = 'none';
-      document.getElementById('submitBtn').disabled = false;
-      document.getElementById('logForm').reset();
+    try {
+      const res = await fetch('DataAccessServlet', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body:    new URLSearchParams(data).toString()
+      });
+
+      if (res.ok) {
+        updateLocalStats(isSuspicious);
+        addToLocalFeeds(data, isSuspicious);
+      }
+
+      showResult(data, isSuspicious, res.ok);
+
+    } catch (err) {
+      console.warn('Servlet unreachable — demo mode active.');
+      updateLocalStats(isSuspicious);
+      addToLocalFeeds(data, isSuspicious);
+      showResult(data, isSuspicious, false);
+    } finally {
+      btnText.style.display   = 'flex';
+      btnLoader.style.display = 'none';
+      submitBtn.disabled      = false;
+      form.reset();
       setDefaultTimestamp();
-    });
+      document.getElementById('threatPreview').classList.remove('show');
+    }
   });
 }
 
-// ===== Validation =====
+// ── Validation ───────────────────────────────────────────────
 function validate() {
   let ok = true;
   ['userId', 'resource', 'accessType', 'timestamp'].forEach(id => {
-    const el = document.getElementById(id);
+    const el  = document.getElementById(id);
     const err = document.getElementById('err-' + id);
     if (!el.value.trim()) {
-      err.textContent = 'This field is required';
-      el.style.borderColor = '#ff3366';
+      err.textContent    = 'This field is required.';
+      el.style.borderColor = 'var(--red)';
+      el.style.boxShadow   = '0 0 0 2px rgba(255,51,102,.18)';
       ok = false;
     } else {
-      err.textContent = '';
+      err.textContent    = '';
       el.style.borderColor = '';
+      el.style.boxShadow   = '';
     }
   });
   return ok;
 }
 
-// ===== Show Result =====
-function showResult(data, isSuspicious) {
+// ── Local State Update ───────────────────────────────────────
+function updateLocalStats(isSuspicious) {
+  state.total++;
+  isSuspicious ? state.suspicious++ : state.safe++;
+  animateCount('totalLogs',       state.total);
+  animateCount('suspiciousCount', state.suspicious);
+  animateCount('safeCount',       state.safe);
+}
+
+function addToLocalFeeds(data, isSuspicious) {
+  state.logs.unshift({ ...data, isSuspicious, ts: new Date() });
+  renderActivityFeed(state.logs);
+  const countEl = document.getElementById('activityCount');
+  if (countEl) countEl.textContent = state.logs.length;
+}
+
+// ── Animated Counter ─────────────────────────────────────────
+function animateCount(id, target) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = parseInt(el.textContent) || 0;
+  const diff  = target - start;
+  const steps = 20;
+  let   step  = 0;
+  const timer = setInterval(() => {
+    step++;
+    el.textContent = Math.round(start + (diff * step / steps));
+    if (step >= steps) clearInterval(timer);
+  }, 18);
+}
+
+
+
+// ── Dashboard Polling (server) ───────────────────────────────
+async function refreshDashboard() {
+  await Promise.all([fetchStats(), fetchLogs()]);
+}
+
+async function fetchStats() {
+  try {
+    const res = await fetch('DataAccessServlet?action=stats');
+    if (!res.ok) throw new Error();
+    const s = await res.json();
+    state.total      = s.total      || state.total;
+    state.suspicious = s.suspicious || state.suspicious;
+    state.safe       = s.safe       || state.safe;
+    animateCount('totalLogs',       state.total);
+    animateCount('suspiciousCount', state.suspicious);
+    animateCount('safeCount',       state.safe);
+  } catch (_) { /* servlet-only mode — local state only */ }
+}
+
+async function fetchLogs() {
+  try {
+    const res = await fetch('DataAccessServlet?action=logs');
+    if (!res.ok) throw new Error();
+    const logs = await res.json();
+    if (logs && logs.length) {
+      renderActivityFeed(logs);
+      const countEl = document.getElementById('activityCount');
+      if (countEl) countEl.textContent = logs.length;
+    }
+  } catch (_) { /* servlet-only mode */ }
+}
+
+// ── Render Activity Feed ─────────────────────────────────────
+function renderActivityFeed(logs) {
+  const el = document.getElementById('activityFeed');
+  if (!el) return;
+  if (logs.length === 0) return;
+
+  el.innerHTML = logs.slice(0, 8).map(log => {
+    const time = log.ts
+      ? log.ts.toLocaleTimeString('en-GB', { hour12: false })
+      : (log.timestamp || '').toString().split('T')[1]?.slice(0, 8) || '--:--:--';
+
+    return `
+      <div class="feed-item ${log.isSuspicious ? 'sus' : ''}">
+        <div class="feed-item-top">
+          <span class="feed-user">${escHtml(log.userId)}</span>
+          <span class="feed-time">${time}</span>
+        </div>
+        <div class="feed-detail">
+          ${escHtml(log.accessType)} → ${escHtml(log.resource)}
+          ${log.isSuspicious ? '<span class="feed-badge">THREAT</span>' : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+
+// ── Show Result Panel ────────────────────────────────────────
+function showResult(data, isSuspicious, dbSaved) {
   const panel = document.getElementById('resultPanel');
   const inner = document.getElementById('resultInner');
 
-  inner.className = 'result-inner ' + (isSuspicious ? 'danger-result' : 'success-result');
+  inner.className = 'result-inner ' + (isSuspicious ? 'bad' : 'ok');
   inner.innerHTML = `
-    <div class="result-header">
+    <div class="result-head">
       <div class="result-icon">
         <i class="fas ${isSuspicious ? 'fa-skull-crossbones' : 'fa-circle-check'}"></i>
       </div>
       <div>
-        <div class="result-title">${isSuspicious ? 'Suspicious Access Detected' : 'Access Logged Successfully'}</div>
-        <div class="result-subtitle">${isSuspicious ? 'This event has been flagged for review' : 'Event recorded and verified safe'}</div>
+        <div class="result-title">${isSuspicious ? '⚠ Suspicious Access Detected' : '✓ Access Logged Successfully'}</div>
+        <div class="result-subtitle">${isSuspicious ? 'Event flagged for security review' : 'Event recorded and verified safe'}</div>
       </div>
     </div>
-    <div class="result-details">
-      <div class="result-detail">
-        <div class="result-detail-label">User ID</div>
-        <div class="result-detail-value">${data.userId}</div>
+    <div class="result-grid">
+      <div class="result-item">
+        <div class="result-item-label">User ID</div>
+        <div class="result-item-value">${escHtml(data.userId)}</div>
       </div>
-      <div class="result-detail">
-        <div class="result-detail-label">Resource</div>
-        <div class="result-detail-value">${data.resource}</div>
+      <div class="result-item">
+        <div class="result-item-label">Resource</div>
+        <div class="result-item-value">${escHtml(data.resource)}</div>
       </div>
-      <div class="result-detail">
-        <div class="result-detail-label">Access Type</div>
-        <div class="result-detail-value">${data.accessType}</div>
+      <div class="result-item">
+        <div class="result-item-label">Access Type</div>
+        <div class="result-item-value">${escHtml(data.accessType)}</div>
       </div>
-      <div class="result-detail">
-        <div class="result-detail-label">Timestamp</div>
-        <div class="result-detail-value">${data.timestamp}</div>
+      <div class="result-item">
+        <div class="result-item-label">Timestamp</div>
+        <div class="result-item-value">${escHtml(data.timestamp)}</div>
       </div>
     </div>
-  `;
+    <div class="result-db ${dbSaved ? 'ok-db' : 'err-db'}">
+      ${dbSaved ? '✔ Record saved to SQLite database' : '⚠ Running in demo mode — record not persisted'}
+    </div>`;
+
   panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   if (isSuspicious) showAlert(data);
 }
 
-// ===== Alert Modal =====
+// ── Alert Modal ──────────────────────────────────────────────
 function showAlert(data) {
   const body = document.getElementById('alertBody');
   let reason = '';
-  if (data.accessType === 'DELETE') reason += 'DELETE operations pose a critical data integrity risk. ';
+  if (data.accessType === 'DELETE') reason += 'DELETE operations pose critical data-integrity risk. ';
   if (data.resource.toLowerCase() === 'admin') reason += 'Admin resource access requires elevated authorization.';
 
   body.innerHTML = `
-    <p><span class="label">User ID: </span><span class="value">${data.userId}</span></p>
-    <p><span class="label">Resource: </span><span class="value">${data.resource}</span></p>
-    <p><span class="label">Access Type: </span><span class="value">${data.accessType}</span></p>
-    <p><span class="label">Timestamp: </span><span class="value">${data.timestamp}</span></p>
-    <p class="reason"><i class="fas fa-exclamation-circle"></i> ${reason}</p>
-  `;
+    <p><span class="lbl">User ID: </span><span class="val">${escHtml(data.userId)}</span></p>
+    <p><span class="lbl">Resource: </span><span class="val">${escHtml(data.resource)}</span></p>
+    <p><span class="lbl">Access Type: </span><span class="val">${escHtml(data.accessType)}</span></p>
+    <p><span class="lbl">Timestamp: </span><span class="val">${escHtml(data.timestamp)}</span></p>
+    <p class="reason"><i class="fas fa-exclamation-circle"></i> ${reason}</p>`;
+
   document.getElementById('alertOverlay').classList.add('show');
 }
 
 function dismissAlert() {
   document.getElementById('alertOverlay').classList.remove('show');
+}
+
+// ── XSS Helper ───────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
 }

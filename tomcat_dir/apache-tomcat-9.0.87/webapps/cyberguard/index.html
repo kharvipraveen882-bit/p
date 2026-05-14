@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Data Access Log Analyzer — Professional Cybersecurity Monitoring Dashboard powered by Java Servlet and SQLite."/>
+  <title>CyberGuard | Data Access Log Analyzer</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+
+  <!-- Background Layers -->
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+  <div class="scanline" aria-hidden="true"></div>
+  <div class="bg-particles" id="bgParticles" aria-hidden="true"></div>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header" role="banner">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">
+          <i class="fas fa-shield-halved"></i>
+          <div class="logo-pulse"></div>
+        </div>
+        <div class="logo-text">
+          <span class="logo-title">CyberGuard</span>
+          <span class="logo-sub">Data Access Log Analyzer</span>
+        </div>
+      </div>
+      <nav class="header-right" aria-label="Status indicators">
+        <div class="status-pill online">
+          <span class="status-dot"></span>
+          <span>System Online</span>
+        </div>
+        <div class="header-time" id="headerTime" aria-live="polite">--:--:--</div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== MAIN LAYOUT ===== -->
+  <main class="main-grid" role="main">
+
+    <!-- ===== LEFT COLUMN ===== -->
+    <div class="col-left">
+
+      <!-- Stat Cards -->
+      <div class="stats-row" role="region" aria-label="Summary statistics">
+        <div class="stat-card" id="statTotal">
+          <div class="stat-bg-icon"><i class="fas fa-database"></i></div>
+          <div class="stat-icon cyan"><i class="fas fa-list-check"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="totalLogs">0</div>
+            <div class="stat-label">Total Logs</div>
+          </div>
+          <div class="stat-trend"><i class="fas fa-arrow-trend-up"></i></div>
+        </div>
+        <div class="stat-card danger" id="statSuspicious">
+          <div class="stat-bg-icon"><i class="fas fa-bug"></i></div>
+          <div class="stat-icon red"><i class="fas fa-triangle-exclamation"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="suspiciousCount">0</div>
+            <div class="stat-label">Threats</div>
+          </div>
+          <div class="stat-trend red"><i class="fas fa-radiation"></i></div>
+        </div>
+        <div class="stat-card safe" id="statSafe">
+          <div class="stat-bg-icon"><i class="fas fa-check-double"></i></div>
+          <div class="stat-icon green"><i class="fas fa-circle-check"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="safeCount">0</div>
+            <div class="stat-label">Safe Access</div>
+          </div>
+          <div class="stat-trend green"><i class="fas fa-shield-check"></i></div>
+        </div>
+      </div>
+
+      <!-- ===== FORM CARD ===== -->
+      <div class="form-card glass-card" role="region" aria-label="Log access event form">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-header-icon"><i class="fas fa-terminal"></i></div>
+            <div>
+              <h1 class="card-title">Log Access Event</h1>
+              <p class="card-subtitle">Submit access records for real-time threat analysis</p>
+            </div>
+          </div>
+          <div class="card-badge">LIVE</div>
+        </div>
+        <div class="card-divider"></div>
+
+        <form id="logForm" action="DataAccessServlet" method="POST" novalidate autocomplete="off">
+
+          <div class="form-row two-col">
+            <!-- User ID -->
+            <div class="form-group">
+              <label for="userId" class="form-label">
+                <i class="fas fa-user-circle"></i> User ID
+              </label>
+              <div class="input-wrapper">
+                <input type="text" id="userId" name="userId" class="form-input"
+                  placeholder="e.g. USR-00421" required
+                  aria-describedby="err-userId"/>
+                <div class="input-glow-icon"><i class="fas fa-fingerprint"></i></div>
+              </div>
+              <div class="field-error" id="err-userId" role="alert"></div>
+            </div>
+
+            <!-- Resource -->
+            <div class="form-group">
+              <label for="resource" class="form-label">
+                <i class="fas fa-server"></i> Resource
+              </label>
+              <div class="input-wrapper">
+                <input type="text" id="resource" name="resource" class="form-input"
+                  placeholder="e.g. /api/users or admin" required
+                  aria-describedby="err-resource"/>
+                <div class="input-glow-icon"><i class="fas fa-hdd"></i></div>
+              </div>
+              <div class="field-error" id="err-resource" role="alert"></div>
+            </div>
+          </div>
+
+          <div class="form-row two-col">
+            <!-- Access Type -->
+            <div class="form-group">
+              <label for="accessType" class="form-label">
+                <i class="fas fa-key"></i> Access Type
+              </label>
+              <div class="input-wrapper">
+                <select id="accessType" name="accessType" class="form-input form-select" required
+                  aria-describedby="err-accessType">
+                  <option value="" disabled selected>-- Select Type --</option>
+                  <option value="READ">READ</option>
+                  <option value="WRITE">WRITE</option>
+                  <option value="UPDATE">UPDATE</option>
+                  <option value="DELETE">DELETE ⚠</option>
+                  <option value="EXECUTE">EXECUTE</option>
+                </select>
+                <div class="input-glow-icon"><i class="fas fa-chevron-down"></i></div>
+              </div>
+              <div class="field-error" id="err-accessType" role="alert"></div>
+            </div>
+
+            <!-- Timestamp -->
+            <div class="form-group">
+              <label for="timestamp" class="form-label">
+                <i class="fas fa-clock"></i> Timestamp
+              </label>
+              <div class="input-wrapper">
+                <input type="datetime-local" id="timestamp" name="timestamp" class="form-input" required
+                  aria-describedby="err-timestamp"/>
+                <div class="input-glow-icon"><i class="fas fa-calendar-alt"></i></div>
+              </div>
+              <div class="field-error" id="err-timestamp" role="alert"></div>
+            </div>
+          </div>
+
+          <!-- Threat Preview Banner -->
+          <div class="threat-preview" id="threatPreview" aria-live="polite">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="threatMsg">This event will be flagged as <strong>SUSPICIOUS</strong></span>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submitBtn" aria-label="Analyze and log access event">
+            <span class="btn-content" id="btnText">
+              <i class="fas fa-satellite-dish"></i>
+              <span>Analyze &amp; Log Access</span>
+            </span>
+            <span class="btn-loading" id="btnLoader" aria-hidden="true">
+              <span class="loader-ring"></span>
+              <span>Processing...</span>
+            </span>
+            <div class="btn-shine"></div>
+          </button>
+
+        </form>
+      </div>
+
+      <!-- ===== RESULT PANEL ===== -->
+      <div class="result-panel" id="resultPanel" aria-live="polite" aria-atomic="true">
+        <div class="result-inner" id="resultInner"></div>
+      </div>
+
+    </div><!-- /col-left -->
+
+    <!-- ===== RIGHT COLUMN (SIDEBAR) ===== -->
+    <aside class="col-right" role="complementary" aria-label="Live monitoring panels">
+
+      <!-- Threat Gauge -->
+      <div class="glass-card threat-gauge-card">
+        <div class="card-header compact">
+          <div class="card-header-icon"><i class="fas fa-gauge-high"></i></div>
+          <span class="card-title">Threat Level</span>
+        </div>
+        <div class="gauge-wrapper">
+          <svg class="gauge-svg" viewBox="0 0 120 70" aria-hidden="true">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#00ff88"/>
+                <stop offset="50%" style="stop-color:#ffcc00"/>
+                <stop offset="100%" style="stop-color:#ff3366"/>
+              </linearGradient>
+            </defs>
+            <path d="M10,65 A50,50 0 0,1 110,65" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round"/>
+            <path id="gaugeArc" d="M10,65 A50,50 0 0,1 110,65" fill="none" stroke="url(#gaugeGrad)" stroke-width="8" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+            <line id="gaugeNeedle" x1="60" y1="65" x2="60" y2="22" stroke="#fff" stroke-width="2" stroke-linecap="round" transform="rotate(-90 60 65)" style="transition:transform 1s ease"/>
+            <circle cx="60" cy="65" r="4" fill="#fff"/>
+          </svg>
+          <div class="gauge-label" id="gaugeLabel">LOW</div>
+          <div class="gauge-pct" id="gaugePct">0%</div>
+        </div>
+      </div>
+
+      <!-- Recent Activity Feed -->
+      <div class="glass-card panel-card" role="region" aria-label="Recent activity">
+        <div class="card-header compact">
+          <div class="card-header-icon"><i class="fas fa-history"></i></div>
+          <span class="card-title">Recent Activity</span>
+          <span class="badge-count" id="activityCount">0</span>
+        </div>
+        <div class="feed-scroll activity-feed" id="activityFeed">
+          <div class="feed-empty">
+            <i class="fas fa-satellite-dish fa-2x"></i>
+            <p>Awaiting signals...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Terminal Log Feed -->
+      <div class="glass-card panel-card terminal-card" role="region" aria-label="Terminal log feed">
+        <div class="card-header compact">
+          <div class="card-header-icon"><i class="fas fa-terminal"></i></div>
+          <span class="card-title">Log Terminal</span>
+          <div class="live-badge">
+            <span class="live-dot"></span>LIVE
+          </div>
+        </div>
+        <div class="feed-scroll log-feed" id="logFeed">
+          <div class="feed-empty">
+            <i class="fas fa-radar fa-2x"></i>
+            <p>No entries yet</p>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- ===== THREAT ALERT MODAL ===== -->
+  <div class="alert-overlay" id="alertOverlay" role="dialog" aria-modal="true" aria-labelledby="alertTitle">
+    <div class="alert-modal">
+      <div class="alert-modal-top-line"></div>
+
+      <!-- Animated threat icon -->
+      <div class="alert-icon-wrap" aria-hidden="true">
+        <i class="fas fa-skull-crossbones"></i>
+        <div class="ripple r1"></div>
+        <div class="ripple r2"></div>
+        <div class="ripple r3"></div>
+      </div>
+
+      <h2 class="alert-title" id="alertTitle">THREAT DETECTED</h2>
+      <p class="alert-subtitle">Suspicious access activity identified and flagged</p>
+
+      <div class="alert-body" id="alertBody"></div>
+
+      <div class="alert-actions">
+        <button class="alert-btn dismiss-btn" onclick="dismissAlert()" aria-label="Dismiss alert">
+          <i class="fas fa-times"></i> Dismiss
+        </button>
+        <button class="alert-btn ack-btn" onclick="dismissAlert()" aria-label="Acknowledge threat">
+          <i class="fas fa-check-double"></i> Acknowledge
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

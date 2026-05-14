@@ -1,0 +1,6 @@
+com\cyberguard\config\AppInitializer.class
+com\cyberguard\service\AccessLogService.class
+com\cyberguard\model\AccessLogRequest.class
+com\cyberguard\controller\LogController.class
+com\cyberguard\controller\DataAccessController.class
+com\cyberguard\DataAccessLogAnalyzerApplication.class

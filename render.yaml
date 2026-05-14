@@ -1,14 +1,21 @@
 services:
   - type: web
-    name: cyberguard-dashboard
+    name: cyberguard-data-access-analyzer
     env: docker
     plan: free
+    dockerfilePath: ./Dockerfile
     disk:
-      name: data
-      mountPath: /var/data
+      name: database
+      mountPath: /data
       sizeGB: 1
     envVars:
       - key: DB_PATH
-        value: /var/data/data_access_logs.db
+        value: /data/data_access_logs.db
       - key: PORT
         value: 8080
+      - key: JAVA_OPTS
+        value: "-Xmx512m -Xms256m"
+    healthCheckPath: /
+    healthCheckInterval: 30
+    autoDeploy: true
+
