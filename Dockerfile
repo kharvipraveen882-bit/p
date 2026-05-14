@@ -6,7 +6,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests -q
 
 # Runtime stage - Minimal image for deployment
-FROM openjdk:17-jdk-slim
+FROM maven:3.9.6-eclipse-temurin-17
 WORKDIR /app
 
 # Install curl for health checks
