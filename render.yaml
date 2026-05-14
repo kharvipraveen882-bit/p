@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: data-access-log-analyzer
+    env: docker
+    plan: free # Can be updated to paid plan if needed
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DB_PATH
+        value: /var/data/data_access_logs.db

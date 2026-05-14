@@ -12,7 +12,13 @@ import javax.servlet.http.*;
  */
 public class DataAccessServlet extends HttpServlet {
 
-    private static final String DB_URL = "jdbc:sqlite:data_access_logs.db";
+    private static String getDbUrl() {
+        String dbPath = System.getenv("DB_PATH");
+        if (dbPath == null || dbPath.isEmpty()) {
+            dbPath = "data_access_logs.db";
+        }
+        return "jdbc:sqlite:" + dbPath;
+    }
 
     @Override
     public void init() throws ServletException {
@@ -20,7 +26,7 @@ public class DataAccessServlet extends HttpServlet {
             // Load SQLite JDBC driver
             Class.forName("org.sqlite.JDBC");
             // Create table if not exists
-            try (Connection conn = DriverManager.getConnection(DB_URL);
+            try (Connection conn = DriverManager.getConnection(getDbUrl());
                  Statement stmt = conn.createStatement()) {
                 stmt.execute(
                     "CREATE TABLE IF NOT EXISTS access_logs (" +
@@ -67,7 +73,7 @@ public class DataAccessServlet extends HttpServlet {
 
         // Insert into database
         boolean dbSuccess = false;
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(getDbUrl());
              PreparedStatement pstmt = conn.prepareStatement(
                  "INSERT INTO access_logs (userId, resource, accessType, timestamp, isSuspicious) VALUES (?, ?, ?, ?, ?)"
              )) {
