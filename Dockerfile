@@ -1,34 +1,17 @@
-# Build stage - Compile and package the application
-FROM maven:3.9.2-openjdk-17-slim AS builder
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests -q
+FROM maven:3.9.6-eclipse-temurin-17 AS build
 
-# Runtime stage - Minimal image for deployment
-FROM maven:3.9.6-eclipse-temurin-17
 WORKDIR /app
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+COPY . .
 
-# Copy the built JAR from builder stage
-COPY --from=builder /app/target/app.jar ./app.jar
+RUN mvn clean package -DskipTests
 
-# Create data directory for SQLite database
-RUN mkdir -p /data
+FROM eclipse-temurin:17
 
-# Expose port 8080 (will be overridden by PORT env var on Render)
+WORKDIR /app
+
+COPY --from=build /app/target/*.jar app.jar
+
 EXPOSE 8080
 
-# Set environment variables
-ENV PORT=8080
-ENV DB_PATH=/data/data_access_logs.db
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:${PORT}/ || exit 1
-
-# Run the application
-# The PORT environment variable will be automatically set by Render
 CMD ["java", "-jar", "app.jar"]
