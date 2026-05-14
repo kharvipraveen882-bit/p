@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: data-access-log-analyzer
+    name: cyberguard-dashboard
     env: docker
-    plan: free # Can be updated to paid plan if needed
+    plan: free
     disk:
       name: data
       mountPath: /var/data
@@ -10,3 +10,5 @@ services:
     envVars:
       - key: DB_PATH
         value: /var/data/data_access_logs.db
+      - key: PORT
+        value: 8080

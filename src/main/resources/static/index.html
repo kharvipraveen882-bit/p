@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Data Access Log Analyzer - Cybersecurity Monitoring Dashboard"/>
+  <title>Data Access Log Analyzer</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body>
+
+  <div class="bg-particles" id="bgParticles"></div>
+  <div class="scanline"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon"><i class="fas fa-shield-halved"></i></div>
+        <div class="logo-text">
+          <span class="logo-title">Data Access Log Analyzer</span>
+          <span class="logo-sub">Cybersecurity Monitoring System</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-container layout-sidebar">
+
+    <!-- Dashboard Content (Left) -->
+    <div class="dashboard-content">
+      <!-- Form Card -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <h1 class="form-title"><i class="fas fa-terminal"></i> Log Access Event</h1>
+        <p class="form-subtitle">Submit access records for analysis and threat detection</p>
+        <div class="form-header-line"></div>
+      </div>
+      <form id="logForm" action="DataAccessServlet" method="POST" novalidate>
+        <div class="form-group">
+          <label for="userId" class="form-label"><i class="fas fa-user-circle"></i> User ID</label>
+          <div class="input-wrapper">
+            <input type="text" id="userId" name="userId" class="form-input" placeholder="e.g. USR-00421" autocomplete="off" required/>
+            <div class="input-icon"><i class="fas fa-fingerprint"></i></div>
+          </div>
+          <div class="field-error" id="err-userId"></div>
+        </div>
+        <div class="form-group">
+          <label for="resource" class="form-label"><i class="fas fa-server"></i> Resource</label>
+          <div class="input-wrapper">
+            <input type="text" id="resource" name="resource" class="form-input" placeholder="e.g. /api/users or admin" autocomplete="off" required/>
+            <div class="input-icon"><i class="fas fa-database"></i></div>
+          </div>
+          <div class="field-error" id="err-resource"></div>
+        </div>
+        <div class="form-group">
+          <label for="accessType" class="form-label"><i class="fas fa-key"></i> Access Type</label>
+          <div class="input-wrapper">
+            <select id="accessType" name="accessType" class="form-input form-select" required>
+              <option value="" disabled selected>-- Select Access Type --</option>
+              <option value="READ">READ</option>
+              <option value="WRITE">WRITE</option>
+              <option value="UPDATE">UPDATE</option>
+              <option value="DELETE">DELETE</option>
+              <option value="EXECUTE">EXECUTE</option>
+            </select>
+            <div class="input-icon"><i class="fas fa-chevron-down"></i></div>
+          </div>
+          <div class="field-error" id="err-accessType"></div>
+        </div>
+        <div class="form-group">
+          <label for="timestamp" class="form-label"><i class="fas fa-clock"></i> Timestamp</label>
+          <div class="input-wrapper">
+            <input type="datetime-local" id="timestamp" name="timestamp" class="form-input" required/>
+            <div class="input-icon"><i class="fas fa-calendar-alt"></i></div>
+          </div>
+          <div class="field-error" id="err-timestamp"></div>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <span class="btn-text" id="btnText"><i class="fas fa-satellite-dish"></i> Analyze & Log Access</span>
+          <span class="btn-loader" id="btnLoader"><i class="fas fa-spinner fa-spin"></i> Processing...</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Result Panel -->
+    <div class="result-panel" id="resultPanel">
+      <div class="result-inner" id="resultInner"></div>
+    </div>
+
+    <!-- Live Metrics -->
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-list-check"></i></div>
+        <div class="metric-value" id="totalLogs">0</div>
+        <div class="metric-label">Total Logs</div>
+      </div>
+      <div class="metric-card danger">
+        <div class="metric-icon"><i class="fas fa-triangle-exclamation"></i></div>
+        <div class="metric-value" id="suspiciousCount">0</div>
+        <div class="metric-label">Suspicious</div>
+      </div>
+      <div class="metric-card safe">
+        <div class="metric-icon"><i class="fas fa-circle-check"></i></div>
+        <div class="metric-value" id="safeCount">0</div>
+        <div class="metric-label">Safe Access</div>
+      </div>
+    </div>
+
+    </div>
+
+    <!-- Sidebar (Right) -->
+    <aside class="dashboard-sidebar">
+
+      <!-- Recent Activity -->
+      <div class="panel-card">
+        <div class="panel-title"><i class="fas fa-history"></i> Recent Activity</div>
+        <div class="activity-feed" id="activityFeed">
+          <div class="feed-empty"><i class="fas fa-satellite-dish"></i><p>Awaiting signals...</p></div>
+        </div>
+      </div>
+
+      <!-- Log Feed -->
+      <div class="panel-card">
+        <div class="panel-title"><i class="fas fa-terminal"></i> Log Feed <span class="live-badge">LIVE</span></div>
+        <div class="log-feed" id="logFeed">
+          <div class="feed-empty"><i class="fas fa-radar"></i><p>No log entries yet</p></div>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- Alert Modal -->
+  <div class="alert-overlay" id="alertOverlay">
+    <div class="alert-modal">
+      <div class="alert-icon-wrapper">
+        <i class="fas fa-skull-crossbones fa-3x"></i>
+        <div class="alert-ripple"></div>
+        <div class="alert-ripple delay1"></div>
+        <div class="alert-ripple delay2"></div>
+      </div>
+      <h2 class="alert-title">THREAT DETECTED</h2>
+      <p class="alert-subtitle">Suspicious access activity identified</p>
+      <div class="alert-body" id="alertBody"></div>
+      <div class="alert-actions">
+        <button class="alert-btn dismiss" onclick="dismissAlert()"><i class="fas fa-times"></i> Dismiss</button>
+        <button class="alert-btn acknowledge" onclick="dismissAlert()"><i class="fas fa-check-double"></i> Acknowledge</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
