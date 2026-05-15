@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * AppInitializer - Initializes the application on startup
- * Ensures SQLite database is created and ready for use
+ * Ensures PostgreSQL database is created and ready for use
  */
 @Component
 public class AppInitializer implements CommandLineRunner {

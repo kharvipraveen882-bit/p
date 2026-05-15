@@ -12,42 +12,57 @@ import javax.servlet.http.*;
  * Handles POST requests from the CyberGuard dashboard.
  * - Validates input fields
  * - Detects suspicious access (DELETE or admin resource)
- * - Stores records in SQLite via JDBC / PreparedStatement
+ * - Stores records in PostgreSQL via JDBC / PreparedStatement
  * - Returns a styled HTML response page
  */
 public class DataAccessServlet extends HttpServlet {
 
     // ── DB URL ────────────────────────────────────────────────
+    // ── DB Config ───────────────────────────────────────────
     private static String getDbUrl() {
-        String path = System.getenv("DB_PATH");
-        if (path == null || path.isBlank()) {
-            path = System.getProperty("user.home") + "/data_access_logs.db";
+        String host = System.getenv("DB_HOST");
+        String port = System.getenv("DB_PORT");
+        String name = System.getenv("DB_NAME");
+        if (host == null || host.isBlank()) {
+            return "jdbc:postgresql://localhost:5432/cyberguard"; 
         }
-        return "jdbc:sqlite:" + path;
+        return "jdbc:postgresql://" + host + ":" + port + "/" + name;
+    }
+
+    private static String getDbUser() {
+        return System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "postgres";
+    }
+
+    private static String getDbPassword() {
+        return System.getenv("DB_PASSWORD") != null ? System.getenv("DB_PASSWORD") : "postgres";
+    }
+
+    private static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(getDbUrl(), getDbUser(), getDbPassword());
     }
 
     // ── Init: create table if not exists ─────────────────────
     @Override
     public void init() throws ServletException {
         try {
-            Class.forName("org.sqlite.JDBC");
-            try (Connection c = DriverManager.getConnection(getDbUrl());
+            Class.forName("org.postgresql.Driver");
+            try (Connection c = getConnection();
                  Statement  s = c.createStatement()) {
                 s.execute(
                     "CREATE TABLE IF NOT EXISTS access_logs (" +
-                    "  id          INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "  id          SERIAL PRIMARY KEY," +
                     "  userId      TEXT    NOT NULL," +
                     "  resource    TEXT    NOT NULL," +
                     "  accessType  TEXT    NOT NULL," +
                     "  timestamp   TEXT    NOT NULL," +
                     "  isSuspicious INTEGER DEFAULT 0," +
-                    "  createdAt   DATETIME DEFAULT CURRENT_TIMESTAMP" +
+                    "  createdAt   TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                     ")"
                 );
             }
-            log("[CyberGuard] SQLite initialized → " + getDbUrl());
+            log("[CyberGuard] PostgreSQL initialized → " + getDbUrl());
         } catch (ClassNotFoundException e) {
-            throw new ServletException("sqlite-jdbc.jar not found in WEB-INF/lib", e);
+            throw new ServletException("PostgreSQL JDBC driver not found", e);
         } catch (SQLException e) {
             throw new ServletException("Database initialization failed", e);
         }
@@ -63,7 +78,7 @@ public class DataAccessServlet extends HttpServlet {
         res.setContentType("application/json");
         PrintWriter out = res.getWriter();
 
-        try (Connection c = DriverManager.getConnection(getDbUrl())) {
+        try (Connection c = getConnection()) {
             if ("stats".equals(action)) {
                 int total = 0, suspicious = 0;
                 try (Statement s = c.createStatement();
@@ -121,9 +136,9 @@ public class DataAccessServlet extends HttpServlet {
             "DELETE".equalsIgnoreCase(accessType) ||
             "admin".equalsIgnoreCase(resource);
 
-        // Insert into SQLite
+        // Insert into PostgreSQL
         boolean saved = false;
-        try (Connection c = DriverManager.getConnection(getDbUrl());
+        try (Connection c = getConnection();
              PreparedStatement ps = c.prepareStatement(
                  "INSERT INTO access_logs (userId, resource, accessType, timestamp, isSuspicious) VALUES (?,?,?,?,?)"
              )) {
@@ -164,7 +179,7 @@ public class DataAccessServlet extends HttpServlet {
                                     : "Event recorded and verified as safe";
         String bgGrad  = suspicious ? "linear-gradient(135deg,#160820,#0c1226)"
                                     : "linear-gradient(135deg,#061422,#062212)";
-        String dbMsg   = saved ? "&#x2713; Record saved to SQLite database"
+        String dbMsg   = saved ? "&#x2713; Record saved to PostgreSQL database"
                                : "&#x2717; Database unavailable — record not persisted";
         String dbColor = saved ? "#00ff88" : "#ff3366";
 

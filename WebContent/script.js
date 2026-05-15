@@ -286,7 +286,7 @@ function showResult(data, isSuspicious, dbSaved) {
       </div>
     </div>
     <div class="result-db ${dbSaved ? 'ok-db' : 'err-db'}">
-      ${dbSaved ? '✔ Record saved to SQLite database' : '⚠ Running in demo mode — record not persisted'}
+      ${dbSaved ? '✔ Record saved to PostgreSQL database' : '⚠ Running in demo mode — record not persisted'}
     </div>`;
 
   panel.style.display = 'block';

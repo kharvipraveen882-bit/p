@@ -11,32 +11,46 @@ import java.util.*;
 public class LogController {
 
     private static String getDbUrl() {
-        String dbPath = System.getenv("DB_PATH");
-        if (dbPath == null || dbPath.isEmpty()) {
-            dbPath = "data_access_logs.db";
+        String host = System.getenv("DB_HOST");
+        String port = System.getenv("DB_PORT");
+        String name = System.getenv("DB_NAME");
+        if (host == null || host.isBlank()) {
+            return "jdbc:postgresql://localhost:5432/cyberguard"; 
         }
-        return "jdbc:sqlite:" + dbPath;
+        return "jdbc:postgresql://" + host + ":" + port + "/" + name;
+    }
+
+    private static String getDbUser() {
+        return System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "postgres";
+    }
+
+    private static String getDbPassword() {
+        return System.getenv("DB_PASSWORD") != null ? System.getenv("DB_PASSWORD") : "postgres";
+    }
+
+    private static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(getDbUrl(), getDbUser(), getDbPassword());
     }
 
     @PostConstruct
     public void init() {
         try {
-            Class.forName("org.sqlite.JDBC");
-            try (Connection conn = DriverManager.getConnection(getDbUrl());
+            Class.forName("org.postgresql.Driver");
+            try (Connection conn = getConnection();
                  Statement stmt = conn.createStatement()) {
                 stmt.execute(
                     "CREATE TABLE IF NOT EXISTS access_logs (" +
-                    "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "  id SERIAL PRIMARY KEY," +
                     "  userId TEXT NOT NULL," +
                     "  resource TEXT NOT NULL," +
                     "  accessType TEXT NOT NULL," +
                     "  timestamp TEXT NOT NULL," +
                     "  isSuspicious INTEGER DEFAULT 0," +
-                    "  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP" +
+                    "  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                     ")"
                 );
             }
-            System.out.println("[CyberGuard] Database initialized successfully.");
+            System.out.println("[CyberGuard] PostgreSQL initialized successfully.");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -47,7 +61,7 @@ public class LogController {
     @GetMapping("/api/logs")
     public List<Map<String, Object>> getRecentLogs() {
         List<Map<String, Object>> logs = new ArrayList<>();
-        try (Connection conn = DriverManager.getConnection(getDbUrl());
+        try (Connection conn = getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT * FROM access_logs ORDER BY createdAt DESC LIMIT 20")) {
             
@@ -71,7 +85,7 @@ public class LogController {
     @GetMapping("/api/stats")
     public Map<String, Object> getStats() {
         Map<String, Object> stats = new HashMap<>();
-        try (Connection conn = DriverManager.getConnection(getDbUrl());
+        try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             
             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) as total, SUM(isSuspicious) as suspicious FROM access_logs");

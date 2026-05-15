@@ -10,7 +10,7 @@ import org.springframework.boot.web.servlet.ServletComponentScan;
  * Spring Boot Application Main Class
  * 
  * A cybersecurity monitoring dashboard for analyzing and detecting suspicious data access patterns.
- * Runs on embedded Tomcat with SQLite database backend, deployable to Render.
+ * Runs on embedded Tomcat with PostgreSQL database backend, deployable to Render.
  */
 @ServletComponentScan
 @SpringBootApplication

@@ -10,7 +10,7 @@ import org.springframework.http.MediaType;
 /**
  * DataAccessController - Handles data access log submissions
  * Receives POST requests with access log data, detects suspicious activity,
- * stores records in SQLite database, and returns stylized HTML response.
+ * stores records in PostgreSQL database, and returns stylized HTML response.
  */
 @Controller
 public class DataAccessController {

@@ -17,11 +17,25 @@ public class AccessLogService {
      * Get database URL from environment variable or use default
      */
     private static String getDbUrl() {
-        String dbPath = System.getenv("DB_PATH");
-        if (dbPath == null || dbPath.isEmpty()) {
-            dbPath = "data_access_logs.db";
+        String host = System.getenv("DB_HOST");
+        String port = System.getenv("DB_PORT");
+        String name = System.getenv("DB_NAME");
+        if (host == null || host.isBlank()) {
+            return "jdbc:postgresql://localhost:5432/cyberguard"; 
         }
-        return "jdbc:sqlite:" + dbPath;
+        return "jdbc:postgresql://" + host + ":" + port + "/" + name;
+    }
+
+    private static String getDbUser() {
+        return System.getenv("DB_USER") != null ? System.getenv("DB_USER") : "postgres";
+    }
+
+    private static String getDbPassword() {
+        return System.getenv("DB_PASSWORD") != null ? System.getenv("DB_PASSWORD") : "postgres";
+    }
+
+    private static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(getDbUrl(), getDbUser(), getDbPassword());
     }
 
     /**
@@ -29,24 +43,24 @@ public class AccessLogService {
      */
     public void initializeDatabase() {
         try {
-            Class.forName("org.sqlite.JDBC");
-            try (Connection conn = DriverManager.getConnection(DB_URL);
+            Class.forName("org.postgresql.Driver");
+            try (Connection conn = getConnection();
                  Statement stmt = conn.createStatement()) {
                 stmt.execute(
                     "CREATE TABLE IF NOT EXISTS access_logs (" +
-                    "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "  id SERIAL PRIMARY KEY," +
                     "  userId TEXT NOT NULL," +
                     "  resource TEXT NOT NULL," +
                     "  accessType TEXT NOT NULL," +
                     "  timestamp TEXT NOT NULL," +
                     "  isSuspicious INTEGER DEFAULT 0," +
-                    "  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP" +
+                    "  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                     ")"
                 );
-                System.out.println("[CyberGuard] Database initialized successfully at: " + DB_URL);
+                System.out.println("[CyberGuard] PostgreSQL database initialized successfully.");
             }
         } catch (ClassNotFoundException e) {
-            System.err.println("SQLite JDBC driver not found: " + e.getMessage());
+            System.err.println("PostgreSQL JDBC driver not found: " + e.getMessage());
         } catch (SQLException e) {
             System.err.println("Database initialization failed: " + e.getMessage());
         }
@@ -73,11 +87,11 @@ public class AccessLogService {
     }
 
     /**
-     * Save access log record to SQLite database
+     * Save access log record to PostgreSQL database
      */
     private boolean saveToDatabase(AccessLogRequest request, boolean isSuspicious) {
         try {
-            try (Connection conn = DriverManager.getConnection(DB_URL);
+            try (Connection conn = getConnection();
                  PreparedStatement pstmt = conn.prepareStatement(
                      "INSERT INTO access_logs (userId, resource, accessType, timestamp, isSuspicious) VALUES (?, ?, ?, ?, ?)"
                  )) {
